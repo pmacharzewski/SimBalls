@@ -2,23 +2,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BallsTypes.generated.h"
 
-UENUM()
 enum class EBallTeamColor : uint8
 {
 	Red,
 	Blue,
 	
-	Max,
-	Invalid
+	Max_None,
 };
 
-USTRUCT()
 struct FBallSimulatedState
 {
-	GENERATED_BODY()
-	
 	int32 ID = INDEX_NONE;
 	int32 TargetID = INDEX_NONE;
 	int32 HP = INDEX_NONE;
@@ -27,13 +21,13 @@ struct FBallSimulatedState
 	int32 Damage = 0;
 	
 	FIntPoint GridPosition = FIntPoint::ZeroValue;
-	EBallTeamColor Team = EBallTeamColor::Invalid;
+	EBallTeamColor Team = EBallTeamColor::Max_None;
 	TArray<FIntPoint> GridPath;
 	
 	bool bIsDead = false;
 	double Timestamp = 0.0;
 
-	FBallSimulatedState(){}
+	FBallSimulatedState() = default;
 	FBallSimulatedState(int32 InID, int32 InTargetID, int32 InHP, int32 InStepsToAttack, const FIntPoint& InGridPosition, const EBallTeamColor InTeam)
 	: ID(InID)
 	, TargetID(InTargetID)
@@ -50,7 +44,7 @@ struct FBallSimulatedState
 	
 	bool IsValid() const
 	{
-		return !(ID == INDEX_NONE || HP == INDEX_NONE || StepsToAttack == INDEX_NONE || Team == EBallTeamColor::Invalid);
+		return !(ID == INDEX_NONE || HP == INDEX_NONE || StepsToAttack == INDEX_NONE || Team == EBallTeamColor::Max_None);
 	}
 };
 

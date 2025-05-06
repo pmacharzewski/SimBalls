@@ -5,6 +5,12 @@
 
 #include "SimulationConfig.h"
 
+namespace
+{
+	// limit number of simulation steps per tick
+	constexpr int32 MAX_SIMULATIONS_PER_TICK = 50;
+}
+
 ASimBallsGameState::ASimBallsGameState()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -16,7 +22,7 @@ FBallSimulatedState& ASimBallsGameState::CreateBallState(int32 StateID)
 	const int32 HP = RandomStream.RandRange(Config->MinHP, Config->MaxHP);
 	const int32 X = RandomStream.RandRange(0, GridMax);
 	const int32 Y = RandomStream.RandRange(0, GridMax);
-	const EBallTeamColor Team = static_cast<EBallTeamColor>(StateID % static_cast<int32>(EBallTeamColor::Max));
+	const EBallTeamColor Team = static_cast<EBallTeamColor>(StateID % static_cast<int32>(EBallTeamColor::Max_None));
 		
 	FBallSimulatedState State(StateID, INDEX_NONE, HP, Config->AttackInterval, FIntPoint(X, Y), Team);
 	BallStates.Add(MoveTemp(State));
@@ -105,21 +111,28 @@ void ASimBallsGameState::InitializeBalls()
 
 void ASimBallsGameState::RunSimulation(float DeltaSeconds)
 {
-	bool bStateDirty = false;
 	const double CurrentTime = HasAuthority() ? GetWorld()->GetTimeSeconds() : GetServerWorldTimeSeconds();
 	const double TimeStep = Config->SimulationTimeStep;
+
+	int32 Cycle = 0;
 	
 	// Try to process all missing steps for late joiners so everyone can stay at the same time frame.
-	// Note: this may be too heavy if client joins very late - better to conditional replicate initial state or figure something else
+	// Note: this may be too heavy if client joins very late - better to conditional replicate initial state?
 	while (CurrentTime > SimulationTime)
 	{
 		AdvanceSimulation(SimulationTime);
 		SimulationTime += TimeStep;
-		bStateDirty = true;
+
+		// Prevent too many cycles per single frame
+		if (Cycle++ > MAX_SIMULATIONS_PER_TICK)
+		{
+			return;
+		}
+		
 	}
 
 	// Apply updated simulated states to the Ball Actors.
-	if (bStateDirty)
+	if (Cycle > 0)
 	{
 		for (const FBallSimulatedState& State : BallStates)
 		{
@@ -215,7 +228,7 @@ bool ASimBallsGameState::ProcessMovementState(FBallSimulatedState& State)
 	
 	const FIntPoint& TargetPosition = BallStates[State.TargetID].GridPosition;
 
-	// We cache the path so try to generate when anything changed only
+	// We cache the path and generate when anything changed only
 	// Note: should be done in Async task
 	if (Grid->ShouldRegeneratePath(State.GridPosition, TargetPosition, State.GridPath))
 	{

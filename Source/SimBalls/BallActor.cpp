@@ -90,11 +90,11 @@ void ABallActor::ApplySimulatedState(const FBallSimulatedState& InState)
 		// Make sure we reached previous target spot
 		SetActorLocation(PrevLocation);
 		
-		const double PhaseDuration = SimulatedState.IsValid() ? InState.Timestamp - SimulatedState.Timestamp : Config->SimulationTimeStep;
-		const double MoveDuration = PhaseDuration / Config->MoveRate;
+		const double PhaseDuration = SimulatedState.Timestamp > 0.0 ? InState.Timestamp - SimulatedState.Timestamp : Config->SimulationTimeStep;
+		const double MoveDuration = PhaseDuration;// / Config->MoveRate; //<< When queue works
 
-		//TODO: allow to queue move actions based on GridPath and PathIndex from SimulatedState
 		MovementAction.Play(MoveDuration);
+
 	}
 
 	// Cache last simulated state
@@ -103,11 +103,14 @@ void ABallActor::ApplySimulatedState(const FBallSimulatedState& InState)
 
 void ABallActor::UpdateVisuals(float DeltaTime)
 {
+	FString DebugState;
+	
 	{ // Process movement
 		float Alpha = 0.0f;
 		if (MovementAction.Update(DeltaTime, Alpha))
 		{
 			SetActorLocation(FMath::Lerp(PrevLocation, DesiredLocation, Alpha));
+			DebugState.Append("\nMove");
 		}
 	}
 	
@@ -118,6 +121,7 @@ void ABallActor::UpdateVisuals(float DeltaTime)
 			// Blink few times
 			float FlashAlpha = FMath::Frac(Alpha * Flashes);
 			BallMaterial->SetScalarParameterValue(Param_Flash, FlashAlpha);
+			DebugState.Append("\nAttack");
 		}
 	}
 	
@@ -135,6 +139,7 @@ void ABallActor::UpdateVisuals(float DeltaTime)
 			);
 			
 			SetActorLocation(DesiredLocation + ShakeOffset);
+			DebugState.Append("\nHit");
 		}
 	}
 
@@ -143,8 +148,19 @@ void ABallActor::UpdateVisuals(float DeltaTime)
 		if (DyingAction.Update(DeltaTime, Alpha))
 		{
 			BallMaterial->SetScalarParameterValue(Param_Dissolve, Alpha);
+
+			if (!DyingAction.bPlaying)
+			{
+				SetActorHiddenInGame(true);
+			}
 		}
 	}
 
-	DrawDebugString(GetWorld(), FVector::UpVector * 100.0, FString::Printf(TEXT("HP: %i / %i"), SimulatedState.HP, InitialHP), this, FColor::White, 0);
+	if (SimulatedState.bIsDead)
+	{
+		DebugState.Append("\nDead");
+	}
+
+	DrawDebugString(GetWorld(), FVector::UpVector * 100.0, FString::Printf(TEXT("HP: %i / %i%s"),
+		SimulatedState.HP, InitialHP, *DebugState), this, FColor::White, 0);
 }

@@ -94,10 +94,9 @@ private:
 
 	// Grid management system for path finding
 	UPROPERTY()
-	TObjectPtr<AGridManager> Grid = nullptr;
+	TWeakObjectPtr<AGridManager> Grid = nullptr;
 
 	// Collection of all ball simulation states
-	UPROPERTY()
 	TArray<FBallSimulatedState> BallStates;
 
 	// Collection of all visual ball actors
