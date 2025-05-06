@@ -50,30 +50,30 @@ private:
 	 */
 	void SimulateBallState(FBallSimulatedState& State);
 	/**
-     * Processes combat logic for a ball (attacking and damage).
-     * @return true if combat occurred, false otherwise
-     */
+	 * Processes combat logic for a ball (attacking and damage).
+	 * @return true if combat occurred, false otherwise
+	 */
 	bool ProcessCombatState(FBallSimulatedState& State);
 	/**
-     * Processes movement logic for a ball.
-     * @param State - The ball state to process (will be modified)
-     * @return true if movement occurred, false otherwise
-     */
+	 * Processes movement logic for a ball.
+	 * @param State - The ball state to process (will be modified)
+	 * @return true if movement occurred, false otherwise
+	 */
 	bool ProcessMovementState(FBallSimulatedState& State);
 	/**
 	 * Applies movement to a ball state based on its current path.
 	 */
 	void ApplyMovement(FBallSimulatedState& State);
 	/**
-     * Applies damage from an attacker to a receiver.
-     * @param Attacker - The attacking ball state
-     * @param Receiver - The receiving ball state (will be modified)
-     */
+	 * Applies damage from an attacker to a receiver.
+	 * @param Attacker - The attacking ball state
+	 * @param Receiver - The receiving ball state (will be modified)
+	 */
 	void ApplyDamage(FBallSimulatedState& Attacker, FBallSimulatedState& Receiver);
 	/**
-     * Finds the closest enemy for a given ball state.
-     * @return true if an enemy was found, false otherwise
-     */
+	 * Finds the closest enemy for a given ball state.
+	 * @return true if an enemy was found, false otherwise
+	 */
 	bool FindClosestEnemy(const FBallSimulatedState& State, int32& OutEnemy, int32& OutDistance);
 	/**
 	 * Creates a new ball state with and appends to BallStates.
@@ -82,10 +82,10 @@ private:
 	 */
 	FBallSimulatedState& CreateBallState(int32 StateID);
 	/**
-     * Creates and initializes a visual ball actor based on SimulatedState.
-     * @param BallState - The simulated state to visualize
-     * @return Created ball actor
-     */
+	 * Creates and initializes a visual ball actor based on SimulatedState.
+	 * @param BallState - The simulated state to visualize
+	 * @return Created ball actor
+	 */
 	ABallActor* CreateBallActor(const FBallSimulatedState& BallState);
 
 	// Cached Simulation settings
