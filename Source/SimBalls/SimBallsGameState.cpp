@@ -110,6 +110,7 @@ void ASimBallsGameState::RunSimulation(float DeltaSeconds)
 	const double TimeStep = Config->SimulationTimeStep;
 	
 	// Try to process all missing steps for late joiners so everyone can stay at the same time frame.
+	// Note: this may be too heavy if client joins very late - better to conditional replicate initial state or figure something else
 	while (CurrentTime > SimulationTime)
 	{
 		AdvanceSimulation(SimulationTime);
