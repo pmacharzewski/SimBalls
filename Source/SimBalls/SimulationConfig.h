@@ -66,9 +66,9 @@ public:
 	 */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Visuals", meta=(ClampMin="0.1"))
 	float AttackDuration = 0.5f;
-	/** 
-     * Duration of hit reaction
-     */
+	/**
+	 * Duration of hit reaction
+	 */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Visuals", meta=(ClampMin="0.1"))
 	float HitDuration = 0.25f;
 	/** 
