@@ -17,19 +17,19 @@ class SIMBALLS_API ABallActor : public AActor
 public:
 	ABallActor();
 	/**
-     * Initializes the ball with a given simulated state.
-     */
+	 * Initializes the ball with a given simulated state.
+	 */
 	void InitBall(const FBallSimulatedState& InState);
 	/**
-     * Applies a new simulated state to the ball, triggering visual effects.
-     * @param InState - The new state to apply
-     */
+	 * Applies a new simulated state to the ball, triggering visual effects.
+	 * @param InState - The new state to apply
+	 */
 	void ApplySimulatedState(const FBallSimulatedState& InState);
 	/**
-     * Updates visual effects and interpolations each frame.
-     * Handles movement lerping, attack flashes, hit reactions and death effects.
-     * @param DeltaTime - Time since last frame update
-     */
+	 * Updates visual effects and interpolations each frame.
+	 * Handles movement lerping, attack flashes, hit reactions and death effects.
+	 * @param DeltaTime - Time since last frame update
+	 */
 	void UpdateVisuals(float DeltaTime);
 	
 private:
