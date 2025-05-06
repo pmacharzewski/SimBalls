@@ -10,20 +10,20 @@ class SIMBALLS_API USimulationConfig : public UDeveloperSettings
 	GENERATED_BODY()
 
 public:
-	/** 
-     * Time interval (in seconds) between simulation updates
-     */
+	/**
+	 * Time interval (in seconds) between simulation updates
+	 */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="General", meta=(ClampMin="0.001"))
 	float SimulationTimeStep = 0.1f;
-	/** 
+	/**
 	 * Seed value for random number generation in the simulation
 	 * Note: This should come from server but just for testing
 	 */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="General")
 	int32 Seed = 100;
-	/** 
-     * Number of cells along axis in movement grid
-     */
+	/**
+	 * Number of cells along axis in movement grid
+	 */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="General", meta=(ClampMin="1"))
 	int32 GridSize = 100;
 	/** 
