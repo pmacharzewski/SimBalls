@@ -26,28 +26,28 @@ protected:
 	// End Base Class Interface
 private:
 	/**
-     * Initializes all ball states with random positions and team assignments.
-     * Creates both simulated states and visual actors.
-     */
+	 * Initializes all ball states with random positions and team assignments.
+	 * Creates both simulated states and visual actors.
+	 */
 	void InitializeBalls();
 	/**
-     * Manages the simulation time progression.
-     * Processes all pending simulation steps based on elapsed time.
-     */
+	 * Manages the simulation time progression.
+	 * Processes all pending simulation steps based on elapsed time.
+	 */
 	void RunSimulation(float DeltaSeconds);
 	/**
-     * Advances the simulation by one time step.
-     * * @param Timestamp - The current simulation time
-     */
+	 * Advances the simulation by one time step.
+	 * @param Timestamp - The current simulation time
+	 */
 	void AdvanceSimulation(double Timestamp);
 	/**
-     * Prepares all ball states for a new simulation step.
-     * Resets temporary flags.
-     */
+	 * Prepares all ball states for a new simulation step.
+	 * Resets temporary flags.
+	 */
 	void PrepareBallStates(double Timestamp);
 	/**
-     * Simulates a single ball's behavior for the current time step.
-     */
+	 * Simulates a single ball's behavior for the current time step.
+	 */
 	void SimulateBallState(FBallSimulatedState& State);
 	/**
      * Processes combat logic for a ball (attacking and damage).

@@ -36,19 +36,19 @@ public:
 	*/
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Balls", meta=(ClampMin="1"))
 	int32 MinHP = 2;
-	/** 
-     * Maximum health points for balls
-     */
+	/**
+	 * Maximum health points for balls
+	 */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Balls", meta=(ClampMin="1"))
 	int32 MaxHP = 5;
 	/** 
 	 * How many grid cells a ball can move per simulation step
 	 */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Balls", meta=(ClampMin="1"))
-	int32 MoveRate = 3;
-	/** 
-     * Attack range in grid cells
-     */
+	int32 MoveRate = 1;
+	/**
+	 * Attack range in grid cells
+	 */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Balls", meta=(ClampMin="1"))
 	int32 AttackRange = 2;
 	/** 
