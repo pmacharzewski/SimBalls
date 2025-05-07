@@ -56,6 +56,15 @@ void ABallActor::InitBall(const FBallSimulatedState& InState)
 	BallMaterial = BallMesh->CreateDynamicMaterialInstance(0);
 	BallMaterial->SetVectorParameterValue(Param_Color, TeamColor);
 	SetActorLocation(DesiredLocation);
+	SetActorHiddenInGame(false);
+
+	BallMaterial->SetScalarParameterValue(Param_Flash, 0);
+	BallMaterial->SetScalarParameterValue(Param_Dissolve, 0);
+
+	MovementAction.bPlaying = false;
+	AttackAction.bPlaying = false;
+	HitAction.bPlaying = false;
+	DyingAction.bPlaying = false;
 }
 
 void ABallActor::ApplySimulatedState(const FBallSimulatedState& InState)

@@ -26,7 +26,7 @@ struct FBallSimulatedState
 	
 	bool bIsDead = false;
 	double Timestamp = 0.0;
-
+	
 	FBallSimulatedState() = default;
 	FBallSimulatedState(int32 InID, int32 InTargetID, int32 InHP, int32 InStepsToAttack, const FIntPoint& InGridPosition, const EBallTeamColor InTeam)
 	: ID(InID)

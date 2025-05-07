@@ -63,7 +63,6 @@ FIntPoint AGridManager::IndexToGridPosition(int32 Index) const
 
 FVector AGridManager::GridToWorld(const FIntPoint& GridPos) const
 {
-	FVector HalfSize = FVector(GridSize * CellSize * 0.5);
-	HalfSize.Z = 0;
-	return GetActorLocation() + FVector(GridPos.X * CellSize, GridPos.Y * CellSize, 0.f) - HalfSize;
+	const float HalfSize = GridSize * CellSize * 0.5;
+	return GetActorLocation() + FVector(GridPos.X * CellSize + CellSize * 0.5 - HalfSize, GridPos.Y * CellSize + CellSize * 0.5 - HalfSize, 0.f);
 }

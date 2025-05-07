@@ -23,23 +23,37 @@ FBallSimulatedState& ASimBallsGameState::CreateBallState(int32 StateID)
 	const int32 X = RandomStream.RandRange(0, GridMax);
 	const int32 Y = RandomStream.RandRange(0, GridMax);
 	const EBallTeamColor Team = static_cast<EBallTeamColor>(StateID % static_cast<int32>(EBallTeamColor::Max_None));
-		
-	FBallSimulatedState State(StateID, INDEX_NONE, HP, Config->AttackInterval, FIntPoint(X, Y), Team);
-	BallStates.Add(MoveTemp(State));
 
-	return BallStates.Last();
+	FBallSimulatedState State(StateID, INDEX_NONE, HP, Config->AttackInterval, FIntPoint(X, Y), Team);
+	
+	if (!BallStates.IsValidIndex(StateID))
+	{
+		BallStates.Add(MoveTemp(State));
+	}
+	else
+	{
+		BallStates[StateID] = State;
+	}
+
+	return BallStates[StateID];
 }
 
 ABallActor* ASimBallsGameState::CreateBallActor(const FBallSimulatedState& BallState)
 {
-	FActorSpawnParameters ASP;
-	ASP.Owner = this;
-	ASP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	ABallActor* NewBall = GetWorld()->SpawnActor<ABallActor>(ASP);
+	ABallActor* NewBall = BallActors.IsValidIndex(BallState.ID) ? BallActors[BallState.ID] : nullptr;
+	
+	if (!NewBall)
+	{
+		FActorSpawnParameters ASP;
+		ASP.Owner = this;
+		ASP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		NewBall = GetWorld()->SpawnActor<ABallActor>(ASP);
+		
+		BallActors.Add(NewBall);
+	}
+	
 	NewBall->InitBall(BallState);
-
-	BallActors.Add(NewBall);
-
+	
 	return NewBall;
 }
 
@@ -58,24 +72,7 @@ void ASimBallsGameState::BeginPlay()
 	if (!GetWorld()->IsNetMode(NM_DedicatedServer))
 	{
 		FTimerHandle LookAtBallsHandle;
-		GetWorldTimerManager().SetTimer(LookAtBallsHandle,
-			FTimerDelegate::CreateWeakLambda(this, [this]()
-			{
-				if (auto PC = GetGameInstance()->GetFirstLocalPlayerController())
-				{
-					FVector BallsMiddlePoint = FVector::ZeroVector;
-					for (const auto Ball : BallActors)
-					{
-						BallsMiddlePoint += Ball->GetActorLocation() / BallActors.Num();
-					}
-
-					const FVector CameraLoc = PC->PlayerCameraManager->GetCameraLocation();
-					const FVector LookDir = (BallsMiddlePoint - CameraLoc).GetSafeNormal();
-			
-					PC->SetControlRotation(LookDir.ToOrientationRotator());
-				}
-
-			}), 0.5f, false);
+		GetWorldTimerManager().SetTimer(LookAtBallsHandle, this, &ThisClass::AdjustCamera, 0.5f, false);
 	}
 }
 
@@ -91,6 +88,15 @@ void ASimBallsGameState::Tick(float DeltaSeconds)
 		for (ABallActor* BallActor : BallActors)
 		{
 			BallActor->UpdateVisuals(DeltaSeconds);
+		}
+	}
+
+	// Debug camera adjustment - press space
+	if (!GetWorld()->IsNetMode(NM_DedicatedServer))
+	{
+		if (auto PC = GetGameInstance()->GetFirstLocalPlayerController(); PC && PC->WasInputKeyJustPressed(EKeys::SpaceBar))
+		{
+			AdjustCamera();
 		}
 	}
 }
@@ -166,9 +172,24 @@ void ASimBallsGameState::PrepareBallStates(double Timestamp)
 	
 	for (FBallSimulatedState& State : BallStates)
 	{
-		State.Timestamp = Timestamp;
-		State.Damage = 0; //<< Reset accumulated damage
-		
+		if (State.bIsDead)
+		{
+			// Respawn after death
+			if (Timestamp - State.Timestamp > Config->DyingDuration)
+			{
+				CreateBallActor(CreateBallState(State.ID));
+				State.Timestamp = Timestamp;
+			}
+		}
+		else
+		{
+			State.Timestamp = Timestamp;	
+		}
+
+		// Reset accumulated damage from previous simulation
+		State.Damage = 0;
+
+		// Reset attack if reached attack interval
 		if (State.StepsToAttack == 0)
 		{
 			State.StepsToAttack = Config->AttackInterval;	
@@ -235,6 +256,10 @@ bool ASimBallsGameState::ProcessMovementState(FBallSimulatedState& State)
 		State.PathIndex = 0;
 		State.GridPath = Grid->FindPathAStar(State.GridPosition, TargetPosition);
 	}
+	else
+	{
+		GLog->Log("SKIP REGENERATE PATH");
+	}
 
 	ApplyMovement(State);
 
@@ -284,5 +309,22 @@ bool ASimBallsGameState::FindClosestEnemy(const FBallSimulatedState& State, int3
 	}
 		
 	return OutEnemy != INDEX_NONE;
+}
+
+void ASimBallsGameState::AdjustCamera()
+{
+	if (auto PC = GetGameInstance()->GetFirstLocalPlayerController())
+	{
+		FVector BallsMiddlePoint = FVector::ZeroVector;
+		for (const auto Ball : BallActors)
+		{
+			BallsMiddlePoint += Ball->GetActorLocation() / BallActors.Num();
+		}
+
+		const FVector CameraLoc = PC->PlayerCameraManager->GetCameraLocation();
+		const FVector LookDir = (BallsMiddlePoint - CameraLoc).GetSafeNormal();
+			
+		PC->SetControlRotation(LookDir.ToOrientationRotator());
+	}
 }
 

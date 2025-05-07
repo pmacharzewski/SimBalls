@@ -87,7 +87,7 @@ private:
 	 * @return Created ball actor
 	 */
 	ABallActor* CreateBallActor(const FBallSimulatedState& BallState);
-
+	
 	// Cached Simulation settings
 	UPROPERTY()
 	TObjectPtr<const USimulationConfig> Config = nullptr;
@@ -109,4 +109,7 @@ private:
 
 	// Track simulation time
 	double SimulationTime = 0.0;
+
+private:
+	void AdjustCamera();
 };

@@ -307,13 +307,22 @@ void AGridManager::Tick(float DeltaTime)
 
 void AGridManager::DebugDrawGrid(float DeltaTime)
 {
-	for (int32 X = 0; X < GridSize; ++X)
+	const float HalfGridSize = GridSize * CellSize * 0.5f;
+	const float GridZ = -80.f;
+	
+	for (int32 X = 0; X <= GridSize; ++X)
 	{
-		for (int32 Y = 0; Y < GridSize; ++Y)
-		{
-			const FIntPoint GridPos = FIntPoint(X, Y);
-			const FVector WorldPos = GridToWorld(GridPos);
-			DrawDebugBox(GetWorld(), WorldPos, FVector(CellSize / 2, CellSize / 2, 10.f), FColor::Green, false, DeltaTime + 0.02, 0, 2);
-		}
+		const float XPos = -HalfGridSize + X * CellSize;
+		const FVector Start = FVector(XPos, -HalfGridSize, GridZ);
+		const FVector End = FVector(XPos, HalfGridSize, GridZ);
+		DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 0, 0, 2);
+	}
+	
+	for (int32 Y = 0; Y <= GridSize; ++Y)
+	{
+		const float YPos = -HalfGridSize + Y * CellSize;
+		const FVector Start = FVector(-HalfGridSize, YPos, GridZ);
+		const FVector End = FVector(HalfGridSize, YPos, GridZ);
+		DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 0, 0, 2);
 	}
 }
