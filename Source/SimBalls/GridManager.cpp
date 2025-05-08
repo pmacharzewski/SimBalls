@@ -2,10 +2,9 @@
 #include "GridManager.h"
 #include "EngineUtils.h"
 #include <queue>
-
 #include "SimulationConfig.h"
 
-TWeakObjectPtr<AGridManager> AGridManager::GridManager = nullptr;
+DEFINE_LOG_CATEGORY_STATIC(LogGrid, Log, All)
 
 static bool bShowDebugGrid = false;
 static FAutoConsoleVariableRef CVarShowDebugGrid(
@@ -14,6 +13,8 @@ static FAutoConsoleVariableRef CVarShowDebugGrid(
 		TEXT("Enables debug grid drawing."),
 		ECVF_Cheat
 	);
+
+TWeakObjectPtr<AGridManager> AGridManager::GridManager = nullptr;
 
 AGridManager::AGridManager()
 {
@@ -118,20 +119,13 @@ TArray<FIntPoint> AGridManager::FindPathAStar(const FIntPoint& Start, const FInt
 			while (TraceIndex != INDEX_NONE)
 			{
 				int32 NextIndex = NodePool[TraceIndex].ParentIndex;
-				// Skip first element
-				if (NextIndex == INDEX_NONE)
-				{
-					break;
-				}
-				Path.Insert(NodePool[TraceIndex].Pos, 0);
+				Path.Add(NodePool[TraceIndex].Pos);
 				TraceIndex = NextIndex;
 			}
+			
+			Algo::Reverse(Path);
+			
 			return Path;
-		}
-
-		if (ClosedSet.Contains(CurrentNode.Pos))
-		{
-			continue;
 		}
 		
 		ClosedSet.Add(CurrentNode.Pos);
@@ -178,16 +172,16 @@ TArray<FIntPoint> AGridManager::FindPathAStar(const FIntPoint& Start, const FInt
 	}
 
 	// No path found
-	return Path; 
+	return Path;
 }
 
 TArray<FIntPoint> AGridManager::FindPathSimple(const FIntPoint& Start, const FIntPoint& Goal)
 {
 	TArray<FIntPoint> Path;
+	Path.Reserve(FMath::Abs(Start.X - Goal.X) + FMath::Abs(Start.Y - Goal.Y));
+	Path.Add(Start);
 	
 	FIntPoint NextPathPoint = Start;
-	
-	Path.Add(Start);
 	
 	while (NextPathPoint != Goal)
 	{
@@ -212,22 +206,26 @@ TArray<FIntPoint> AGridManager::FindPathSimple(const FIntPoint& Start, const FIn
 	return Path;
 }
 
-bool AGridManager::ShouldRegeneratePath(const FIntPoint& Start, const FIntPoint& Goal, const TArray<FIntPoint>& InPath) const
+bool AGridManager::ShouldRegeneratePath(const FIntPoint& Start, const FIntPoint& Goal, const TArray<FIntPoint>& InPath, int32 Range) const
 {
 	if (InPath.IsEmpty())
 	{
-		return true;
-	}
-
-	// Goal changed - other ball moved away
-	if (Goal != InPath.Last())
-	{
+		UE_LOG(LogGrid, Verbose, TEXT("[%hs] Regenerate - Path Empty"), __func__);
 		return true;
 	}
 
 	// Reached end already
-	if (Start == Goal)
+	if (IsAtRange(Start, Goal, Range))
 	{
+		UE_LOG(LogGrid, Verbose, TEXT("[%hs] Skip - Goal Reached"), __func__);
+		return false;
+	}
+	
+	// Goal changed - other ball moved away
+	if (Goal != InPath.Last())
+	{
+		
+		UE_LOG(LogGrid, Verbose, TEXT("[%hs] Regenerate - Goal changed"), __func__);
 		return true;
 	}
 	
@@ -246,19 +244,20 @@ bool AGridManager::ShouldRegeneratePath(const FIntPoint& Start, const FIntPoint&
 			continue;
 		}
 		
-		// Boundary check
-		if (Pos.X < 0 || Pos.Y < 0 || Pos.X >= GridSize || Pos.Y >= GridSize)
-		{
-			return true;
-		}
-			
-		// Obstacle/closed set check
 		if (TempObstacles.Contains(Pos))
 		{
+			UE_LOG(LogGrid, Verbose, TEXT("[%hs] Regenerate - Obstacle"), __func__)
 			return true;
 		}
 	}
 
+	if (!bFoundStart)
+	{
+		UE_LOG(LogGrid, Verbose, TEXT("[%hs] Regenerate - No Start Found"), __func__)
+		return true;
+	}
+	
+	UE_LOG(LogGrid, Verbose, TEXT("[%hs] Skip - Path is the same"), __func__)
 	return false;
 
 }

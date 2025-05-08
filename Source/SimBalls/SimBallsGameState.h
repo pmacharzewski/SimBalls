@@ -111,5 +111,5 @@ private:
 	double SimulationTime = 0.0;
 
 private:
-	void AdjustCamera();
+	void AdjustCamera(float DeltaSeconds = 0);
 };

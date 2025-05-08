@@ -5,6 +5,16 @@
 
 #include "SimulationConfig.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogSim, Log, All)
+
+static bool bAutoCameraAdjust = true;
+static FAutoConsoleVariableRef CVarAutoCameraAdjust(
+		TEXT("Sim.AutoCameraAdjust"),
+		bAutoCameraAdjust,
+		TEXT("Enables camera adjustment."),
+		ECVF_Cheat
+	);
+
 namespace
 {
 	// limit number of simulation steps per tick
@@ -57,6 +67,20 @@ ABallActor* ASimBallsGameState::CreateBallActor(const FBallSimulatedState& BallS
 	return NewBall;
 }
 
+void ASimBallsGameState::InitializeBalls()
+{
+	BallStates.Reserve(Config->NumBalls);
+	BallActors.Reserve(Config->NumBalls);
+	
+	// Initialize all the states based on random seed value
+	for (int32 Index = 0; Index < Config->NumBalls; ++Index)
+	{
+		const FBallSimulatedState& State = CreateBallState(Index);
+		
+		CreateBallActor(State);
+	}
+}
+
 void ASimBallsGameState::BeginPlay()
 {
 	Super::BeginPlay();
@@ -72,7 +96,7 @@ void ASimBallsGameState::BeginPlay()
 	if (!GetWorld()->IsNetMode(NM_DedicatedServer))
 	{
 		FTimerHandle LookAtBallsHandle;
-		GetWorldTimerManager().SetTimer(LookAtBallsHandle, this, &ThisClass::AdjustCamera, 0.5f, false);
+		GetWorldTimerManager().SetTimer(LookAtBallsHandle, FTimerDelegate::CreateWeakLambda(this, [this](){ AdjustCamera(0);}), 0.25f, false);
 	}
 }
 
@@ -98,20 +122,12 @@ void ASimBallsGameState::Tick(float DeltaSeconds)
 		{
 			AdjustCamera();
 		}
-	}
-}
 
-void ASimBallsGameState::InitializeBalls()
-{
-	BallStates.Reserve(Config->NumBalls);
-	BallActors.Reserve(Config->NumBalls);
-	
-	// Initialize all the states based on random seed value
-	for (int32 Index = 0; Index < Config->NumBalls; ++Index)
-	{
-		const FBallSimulatedState& State = CreateBallState(Index);
+		if (bAutoCameraAdjust)
+		{
+			AdjustCamera(DeltaSeconds);
+		}
 		
-		CreateBallActor(State);
 	}
 }
 
@@ -134,7 +150,6 @@ void ASimBallsGameState::RunSimulation(float DeltaSeconds)
 		{
 			return;
 		}
-		
 	}
 
 	// Apply updated simulated states to the Ball Actors.
@@ -186,9 +201,9 @@ void ASimBallsGameState::PrepareBallStates(double Timestamp)
 			State.Timestamp = Timestamp;	
 		}
 
-		// Reset accumulated damage from previous simulation
+		// Reset trackers before entering next simulation step
 		State.Damage = 0;
-
+		State.MoveSteps = 0;
 		// Reset attack if reached attack interval
 		if (State.StepsToAttack == 0)
 		{
@@ -251,14 +266,10 @@ bool ASimBallsGameState::ProcessMovementState(FBallSimulatedState& State)
 
 	// We cache the path and generate when anything changed only
 	// Note: should be done in Async task
-	if (Grid->ShouldRegeneratePath(State.GridPosition, TargetPosition, State.GridPath))
+	if (Grid->ShouldRegeneratePath(State.GridPosition, TargetPosition, State.GridPath, Config->AttackRange))
 	{
 		State.PathIndex = 0;
 		State.GridPath = Grid->FindPathAStar(State.GridPosition, TargetPosition);
-	}
-	else
-	{
-		GLog->Log("SKIP REGENERATE PATH");
 	}
 
 	ApplyMovement(State);
@@ -269,20 +280,22 @@ bool ASimBallsGameState::ProcessMovementState(FBallSimulatedState& State)
 void ASimBallsGameState::ApplyMovement(FBallSimulatedState& State)
 {
 	const FIntPoint PrevPosition = State.GridPosition;
-    int32 MoveStep = 0;
-	while (MoveStep++ < Config->MoveRate && State.GridPath.Num() > State.PathIndex)
+	
+	while (State.MoveSteps < Config->MoveRate && State.PathIndex < State.GridPath.Num() - 1 - Config->AttackRange)
 	{
-		State.GridPosition = State.GridPath[State.PathIndex++];
+		State.MoveSteps++;
+		// start from the next grid position and move until MoveStep or Goal is reached
+		State.GridPosition = State.GridPath[++State.PathIndex];
 	}
-
-	// Not sure about this, perhaps not needed to update every time but just once at simulation start (PrepareSimulation)
-	//Grid->UpdateObstacle(PrevPosition, State.GridPosition);
+	
+	// prevent other state finding the same goal position
+	Grid->UpdateObstacle(PrevPosition, State.GridPosition);
 }
 
 void ASimBallsGameState::ApplyDamage(FBallSimulatedState& Attacker, FBallSimulatedState& Receiver)
 {
 	// accumulate damage and set at the end of simulation
-	//TODO: Attacker should provide 'AttackPower'
+	//Note: Attacker could provide Damage size
 	Receiver.Damage++;
 }
 
@@ -311,7 +324,7 @@ bool ASimBallsGameState::FindClosestEnemy(const FBallSimulatedState& State, int3
 	return OutEnemy != INDEX_NONE;
 }
 
-void ASimBallsGameState::AdjustCamera()
+void ASimBallsGameState::AdjustCamera(float DeltaSeconds)
 {
 	if (auto PC = GetGameInstance()->GetFirstLocalPlayerController())
 	{
@@ -320,11 +333,38 @@ void ASimBallsGameState::AdjustCamera()
 		{
 			BallsMiddlePoint += Ball->GetActorLocation() / BallActors.Num();
 		}
-
-		const FVector CameraLoc = PC->PlayerCameraManager->GetCameraLocation();
+		
+		const FVector CameraLoc = PC->PlayerCameraManager->GetCameraLocation();	
 		const FVector LookDir = (BallsMiddlePoint - CameraLoc).GetSafeNormal();
+		
+		if (DeltaSeconds <= 0.0f)
+		{
+			PC->SetControlRotation(LookDir.ToOrientationRotator());
+		}
+		else
+		{
+			const float HalfFOVRad = FMath::DegreesToRadians(PC->PlayerCameraManager->GetFOVAngle() * 0.5f);
+			float MinCameraDist = 500;
+			for (const auto Ball : BallActors)
+			{
+				FVector Origin, BoxExtent;
+				Ball->GetActorBounds(false, Origin, BoxExtent);
+				
+				const float DistToMiddlePoint = (Origin - BallsMiddlePoint).Size();
+				const float DistanceForThisObject = BoxExtent.Size() / FMath::Tan(HalfFOVRad);
+				const float MinCamDistThisObject = DistToMiddlePoint + DistanceForThisObject;
+				
+				MinCameraDist = FMath::Max(MinCameraDist, MinCamDistThisObject);
+			}
+
+			constexpr float MaxCameraDist = 1000.0f;
+			const FVector CameraPivot = Grid->GetActorLocation() + FVector::UpVector * MaxCameraDist;
+			const FVector CameraOffset = (CameraPivot - BallsMiddlePoint).GetSafeNormal() * FMath::Max(MinCameraDist, MaxCameraDist);
+			const FVector DesiredCameraLoc = BallsMiddlePoint + CameraOffset;
 			
-		PC->SetControlRotation(LookDir.ToOrientationRotator());
+			PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), LookDir.ToOrientationRotator(), DeltaSeconds, 0.5));
+			PC->GetPawn()->SetActorLocation(FMath::VInterpTo(PC->GetPawn()->GetActorLocation(), DesiredCameraLoc, DeltaSeconds, 0.5));
+		}
 	}
 }
 

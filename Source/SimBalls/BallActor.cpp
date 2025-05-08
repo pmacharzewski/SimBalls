@@ -65,6 +65,7 @@ void ABallActor::InitBall(const FBallSimulatedState& InState)
 	AttackAction.bPlaying = false;
 	HitAction.bPlaying = false;
 	DyingAction.bPlaying = false;
+	MoveQueue.Empty();
 }
 
 void ABallActor::ApplySimulatedState(const FBallSimulatedState& InState)
@@ -93,19 +94,25 @@ void ABallActor::ApplySimulatedState(const FBallSimulatedState& InState)
 	// Changed position - move
 	if (SimulatedState.GridPosition != InState.GridPosition)
 	{
-		DesiredLocation = Grid->GridToWorld(InState.GridPosition);
-		PrevLocation = Grid->GridToWorld(SimulatedState.GridPosition);
+		const double PhaseDuration = SimulatedState.Timestamp > 0.0 ? InState.Timestamp - SimulatedState.Timestamp : Config->SimulationTimeStep;
+		const double StepMoveDuration = PhaseDuration / Config->MoveRate;
+		
+		for (int32 Step = InState.MoveSteps - 1; Step  >= 0; --Step)
+		{
+			const int32 MoveIndex = InState.PathIndex - Step;
+			const FVector MoveLoc = Grid->GridToWorld(InState.GridPath[MoveIndex]);
+			MoveQueue.Enqueue(MoveLoc);
+		}
+		
+		MovementAction.Play(StepMoveDuration);
 
+		PrevLocation = DesiredLocation;
+		MoveQueue.Dequeue(DesiredLocation);
+		
 		// Make sure we reached previous target spot
 		SetActorLocation(PrevLocation);
-		
-		const double PhaseDuration = SimulatedState.Timestamp > 0.0 ? InState.Timestamp - SimulatedState.Timestamp : Config->SimulationTimeStep;
-		const double MoveDuration = PhaseDuration;// / Config->MoveRate; //<< When queue works
-
-		MovementAction.Play(MoveDuration);
-
 	}
-
+	
 	// Cache last simulated state
 	SimulatedState = InState;
 }
@@ -120,6 +127,15 @@ void ABallActor::UpdateVisuals(float DeltaTime)
 		{
 			SetActorLocation(FMath::Lerp(PrevLocation, DesiredLocation, Alpha));
 			DebugState.Append("\nMove");
+
+			if (!MovementAction.bPlaying)
+			{
+				PrevLocation = DesiredLocation;
+				if (MoveQueue.Dequeue(DesiredLocation))
+				{
+					MovementAction.Play(MovementAction.Duration);
+				}
+			}
 		}
 	}
 	
@@ -169,7 +185,11 @@ void ABallActor::UpdateVisuals(float DeltaTime)
 	{
 		DebugState.Append("\nDead");
 	}
+	else if (!MovementAction.bPlaying && !AttackAction.bPlaying && SimulatedState.StepsToAttack != 0 && SimulatedState.StepsToAttack != USimulationConfig::Get()->AttackInterval)
+	{
+		DebugState.Append("\nAttacking: " + FString::Printf(TEXT("%i/%i%"), SimulatedState.StepsToAttack, USimulationConfig::Get()->AttackInterval));
+	}
 
-	DrawDebugString(GetWorld(), FVector::UpVector * 100.0, FString::Printf(TEXT("HP: %i / %i%s"),
+	DrawDebugString(GetWorld(), FVector::UpVector * 100.0, FString::Printf(TEXT("HP: %i/%i%s"),
 		SimulatedState.HP, InitialHP, *DebugState), this, FColor::White, 0);
 }

@@ -45,7 +45,8 @@ private:
 	// Cache positions to lerp between
 	FVector PrevLocation = FVector::ZeroVector;
 	FVector DesiredLocation = FVector::ZeroVector;
-
+	TQueue<FVector> MoveQueue;
+	
 	// Actions
 	FBallTimedAction MovementAction;
 	FBallTimedAction AttackAction;
